@@ -2,7 +2,6 @@
 title: "INFO 8000 Assignment #3/ Filtering through Turbulence Reports from January"
 output: html_notebook
 ---
----
 
 Install Packages(Must comment out install.package when publishing through knit)
 ```{r}
