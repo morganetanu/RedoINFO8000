@@ -1,0 +1,120 @@
+---
+title: "INFO 8000 Assignment #3/ Filtering through Turbulence Reports from January"
+output: html_notebook
+---
+---
+
+Install Packages(Must comment out install.package when publishing through knit)
+```{r}
+install.packages(c("ggplot2","devtools", "dplyr", "stringer", "tidyverse"))
+install.packages(c("maps", "mapdata"))
+library(stringr)
+library(devtools)
+library(ggplot2)
+library(ggmap)
+library(maps)
+library(mapdata)
+library(plyr)
+library(dplyr)
+library(readr)
+library(tidyverse)
+```
+
+Read in CSV File of Pilot Reports
+```{r}
+PIREPS <- read.csv("C:/Users/Nick Morgan/Desktop/stormattr_201701010000_201705010000 (1).csv")
+cols(
+  VALID = col_double(),
+  URGENT = col_logical(),
+  AIRCRAFT = col_character(),
+  REPORT = col_character(),
+  LAT = col_character(),
+  LON = col_character()
+)
+```
+
+#Questions:
+#1.) What type of commmerical aircraft has the most amount of Pilot Reports?
+(Create a variable that only has aircraft, then filtered through the data to find the aircraft that has the most reports) 
+```{r}
+AircraftOnly <- PIREPS %>%
+  select(AIRCRAFT)%>%
+  filter(AIRCRAFT=='B717'|AIRCRAFT=='B737'|AIRCRAFT=='B747'|AIRCRAFT=='B757'|AIRCRAFT=='B767')
+  DeltaPlanes<-table(AircraftOnly)
+  DeltaPlanes2<-data.frame(DeltaPlanes)
+  barplot(DeltaPlanes2$Freq, main = "Reports by Type of Aircraft", xlab = "Aircraft Type", ylab = "Number of Reports", ylim = c(0,40000), names.arg = c("B717","B737", "B747", "B747", "B757"))
+```
+
+This information is useful as the size of the aircraft has an affect on the turbulence that the pilot will feel. The smaller the plane, the lower the threshold is for Extreme turbulence compared to its counterpart. 
+
+#2.) Where are the majority of these pilot reports coming from?
+(Read in a filtered CSV (deleted corrupt Lat/Longs), download a map of the United States, plot the latitude and longitude points of each reports, create density map.)
+```{r}
+PIREPS2<-read.csv("C:/Users/Nick Morgan/Desktop/Filteredstormattr_201701010000_201705010000.csv")
+LatLong <-data.frame(PIREPS2) %>%
+  select(LAT,LON)  %>%
+  filter(LAT>="0" & LON<="0")
+USA<-get_map('usa', zoom=4)
+ggmap(USA)+
+  stat_density2d(
+    aes(x = LON, y = LAT, fill = ..level.., alpha = ..level..,show_guide=FALSE),
+    data = LatLong,
+    geom = "polygon",
+    bins = 20)+
+  scale_fill_gradient(low = "black", high = "red") +                           #change display colors
+  theme(legend.position="none")+                                                    #no legend
+  ggtitle("Density of Pilot Reports")+                                          #title name
+  theme(plot.title = element_text(lineheight=3.5, face="bold"))                  #title graphics
+   
+```
+
+This information is useful as a turbulence researcher, as I can find areas that arent receiving reports as much. For areas that arent receiving as many reports, I know to rely on satellite and radar data for turbulence diagnostics.
+
+#3.) Of those reports, which reports had turbulence reported as well?
+(Utilize stringr package to filter through the "Report" column in the PIREP database, looking for reports with the words, "TB". "TB" indicates turbulence on the flight, as reported by the pilot  Use the USA map we downloaded earlier, add lat/long to map of reports indicating turbulence)
+
+```{r}
+library(stringr)
+testforturb<-data.frame(PIREPS, stringsAsFactors = FALSE) %>%
+  filter(str_detect(PIREPS$REPORT,"TB"))
+testforturb$LON <- as.numeric(as.character(testforturb$LON))
+testforturb$LAT <- as.numeric(as.character(testforturb$LAT))
+ggmap(USA)+ggtitle("Pilot Reports Indicating Turbulence")+
+  geom_point(data = testforturb, aes(x = LON, y = LAT), color= "red", alpha = 0.1, size = 1)
+```
+
+This is one of the more important graphics I can make, this displays every pilot report that indicates turbulence, on any scale. With these reports, I can investigate the time frames of these reports to find turbulence outbreaks that might not have previously been detected.
+
+#4.) How many of these reports where of "Moderate" Intensity Turbulence
+(Similiar to 3, except, looking for reports regarding Moderate turbulence Utilizing the stringr package.)
+```{r}
+MODTurb<-data.frame(PIREPS, stringsAsFactors = FALSE) %>%
+  filter(str_detect(PIREPS$REPORT,"MOD"))
+MODTurb$LON <- as.numeric(as.character(MODTurb$LON))
+MODTurb$LAT <- as.numeric(as.character(MODTurb$LAT))
+ggmap(USA)+ggtitle("Pilot Reports Indicating MODERATE Turbulence")+
+  geom_point(data = MODTurb, aes(x = LON, y = LAT), color= "black", alpha = 0.1, size = 1)
+```
+
+This code allows me to filter through the dataset by the intensity of the reported Turbulence. This can be changed to any intensity that I would like to investigate, which in turn gives me locations and positions of these reports.
+
+#5.) Can I find turbulence reports given a specific flight height?
+(Add an additional filter to the TB filter. Add a flight level from the report. Use the USA map from earlier, plots lat/long of reports indicating reports with turbulence at 3000ft)
+
+```{r}
+Turbatheight<-data.frame(PIREPS, stringsAsFactors = FALSE) %>%
+  filter(str_detect(PIREPS$REPORT,"FL030"),str_detect(PIREPS$REPORT, "TB"))
+Turbatheight$LON <- as.numeric(as.character(Turbatheight$LON))
+Turbatheight$LAT <- as.numeric(as.character(Turbatheight$LAT))
+ggmap(USA)+ggtitle("Pilot Reports Indicating Reports of Turbulence at 3,000ft")+
+  geom_point(data = Turbatheight, aes(x = LON, y = LAT), color= "black", alpha = 1, size = 1)
+```
+
+Turbulence at differing flight levels is an interesting topic within the aviation industry.  Different types of turbulence (shear, vorticity, etc.) occur at different levels throughout the atmosphere. With this, I can find reports of turbulence at a specific flight level at a specific location. This allows me to investigate what type of turbulence was occuring at a flight level (with the help of radar and satellite)
+
+This would be useful in research, as I could select variables and display data rather quickly.  I would be able to look for hotspots in turbulence and reports as well as look for turbulence outbreaks during a specific time period and flight height.
+```
+
+```
+
+
